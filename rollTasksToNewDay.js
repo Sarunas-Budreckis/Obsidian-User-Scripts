@@ -19,9 +19,18 @@ function getMostRecentDailyNote(currentDate, dailyPath) {
 
 /**
  * Checks if a line is a section header
+ * Returns an object with the heading level and name, or null if not a header
  */
 function isSectionHeader(line) {
-  return line.match(/^## (.+)$/);
+  const match = line.match(/^(#{1,3}) (.+)$/);
+  if (match) {
+    return {
+      level: match[1].length,
+      hashes: match[1],
+      name: match[2]
+    };
+  }
+  return null;
 }
 
 /**
@@ -76,23 +85,28 @@ function parseSections(content) {
   for (const line of lines) {
     const sectionMatch = isSectionHeader(line);
     if (sectionMatch) {
-      currentSection = sectionMatch[1];
+      const sectionKey = `${sectionMatch.hashes} ${sectionMatch.name}`;
+      currentSection = sectionKey;
       // Initialize section if it doesn't exist
       if (!sections.has(currentSection)) {
-        sections.set(currentSection, []);
+        sections.set(currentSection, {
+          level: sectionMatch.level,
+          hashes: sectionMatch.hashes,
+          name: sectionMatch.name,
+          tasks: []
+        });
       }
     } else if (currentSection && isTask(line)) {
       const processedTask = processTaskLine(line, currentSection);
       if (processedTask) {
-        sections.get(currentSection).push(processedTask);
+        sections.get(currentSection).tasks.push(processedTask);
       }
     }
   }
 
   // Convert Map to array and filter out empty sections
-  return Array.from(sections.entries())
-    .filter(([name, tasks]) => tasks.length > 0)
-    .map(([name, tasks]) => ({ name, tasks }));
+  return Array.from(sections.values())
+    .filter(section => section.tasks.length > 0);
 }
 
 
@@ -100,9 +114,18 @@ function parseSections(content) {
  * Formats sections and tasks into the final output
  */
 function formatOutput(sections) {
-  return sections.map(section => {
-    return `## ${section.name}\n${section.tasks.join('\n')}`;
-  }).join('\n\n');
+  let result = '';
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i];
+    result += `${section.hashes} ${section.name}\n${section.tasks.join('\n')}`;
+
+    // Add spacing after section (except for the last one)
+    if (i < sections.length - 1) {
+      // Single newline for ### sections, double newline for # and ## sections
+      result += section.level === 3 ? '\n' : '\n\n';
+    }
+  }
+  return result;
 }
 
 /**
