@@ -1,0 +1,10 @@
+# Ignore everything in parent directories
+../*
+
+# But track this directory
+!../User Scripts/
+!../User Scripts/**
+
+# Git files
+!../.gitignore
+!../.gitattributes
